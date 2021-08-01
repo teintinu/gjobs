@@ -11,7 +11,7 @@ import (
 func TestJob(t *testing.T) {
 	mx := sync.Mutex{}
 	run := []string{}
-	job := NewJob([]*Job{}, func() (interface{}, error) {
+	job := NewJob([]*GJob{}, func() (interface{}, error) {
 		time.Sleep(time.Millisecond * 50)
 		return "ok", nil
 	})
@@ -50,7 +50,7 @@ func TestJobWithPanic(t *testing.T) {
 	mx := sync.Mutex{}
 	run := []string{}
 	a := len(run)
-	job := NewJob([]*Job{}, func() (interface{}, error) {
+	job := NewJob([]*GJob{}, func() (interface{}, error) {
 		return fmt.Sprint(1 / a), nil
 	})
 	go func() {
@@ -84,14 +84,14 @@ func TestJobWithPanic(t *testing.T) {
 func TestJobWithDep(t *testing.T) {
 	mx := sync.Mutex{}
 	run := []string{}
-	job1 := NewJob([]*Job{}, func() (interface{}, error) {
+	job1 := NewJob([]*GJob{}, func() (interface{}, error) {
 		time.Sleep(time.Millisecond * 50)
 		mx.Lock()
 		run = append(run, "1.Doing")
 		mx.Unlock()
 		return "11", nil
 	})
-	job2 := NewJob([]*Job{job1}, func() (interface{}, error) {
+	job2 := NewJob([]*GJob{job1}, func() (interface{}, error) {
 		mx.Lock()
 		run = append(run, "2.Doing")
 		mx.Unlock()
@@ -144,11 +144,11 @@ func TestJobWithDep(t *testing.T) {
 
 func TestJobWithGetDepFromOther(t *testing.T) {
 	run := []string{}
-	job1 := NewJob([]*Job{}, func() (interface{}, error) {
+	job1 := NewJob([]*GJob{}, func() (interface{}, error) {
 		time.Sleep(time.Millisecond * 50)
 		return "11", nil
 	})
-	job2 := NewJob([]*Job{}, func() (interface{}, error) {
+	job2 := NewJob([]*GJob{}, func() (interface{}, error) {
 		r1, err1 := job1.Get()
 		if err1 != nil {
 			return nil, err1

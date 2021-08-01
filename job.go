@@ -7,17 +7,17 @@ import (
 	"sync/atomic"
 )
 
-type Job struct {
-	deps    []*Job
-	result  *JobResult
-	waiter  chan JobResult
+type GJob struct {
+	deps    []*GJob
+	result  *GJobResult
+	waiter  chan GJobResult
 	state   int32
 	waiting int32
 	mutex   sync.Mutex
 	fn      func() (interface{}, error)
 }
 
-type JobState int
+type GJobState int
 
 const (
 	JobStateNotStarted         = 0
@@ -26,16 +26,16 @@ const (
 	JobStateFinished           = 3
 )
 
-type JobResult struct {
+type GJobResult struct {
 	value interface{}
 	err   error
 }
 
-func NewJob(deps []*Job, fn func() (interface{}, error)) *Job {
-	return &Job{
+func NewJob(deps []*GJob, fn func() (interface{}, error)) *GJob {
+	return &GJob{
 		deps:    deps,
 		result:  nil,
-		waiter:  make(chan JobResult),
+		waiter:  make(chan GJobResult),
 		state:   JobStateNotStarted,
 		waiting: 1,
 		mutex:   sync.Mutex{},
@@ -43,7 +43,7 @@ func NewJob(deps []*Job, fn func() (interface{}, error)) *Job {
 	}
 }
 
-func (job *Job) ExecInBackground() {
+func (job *GJob) ExecInBackground() {
 
 	if atomic.CompareAndSwapInt32(&job.state, JobStateNotStarted, JobStateRunning) {
 
@@ -51,7 +51,7 @@ func (job *Job) ExecInBackground() {
 			defer func() {
 				if err := recover(); err != nil {
 					job.mutex.Lock()
-					job.result = &JobResult{
+					job.result = &GJobResult{
 						value: nil,
 						err:   errors.New(fmt.Sprint(err)),
 					}
@@ -67,7 +67,7 @@ func (job *Job) ExecInBackground() {
 				dep.Wait()
 			}
 			value, err := job.fn()
-			result := JobResult{
+			result := GJobResult{
 				value: value,
 				err:   err,
 			}
@@ -84,7 +84,7 @@ func (job *Job) ExecInBackground() {
 	}
 }
 
-func (job *Job) Wait() {
+func (job *GJob) Wait() {
 	if atomic.LoadInt32(&job.state) < JobStateFinished {
 		atomic.AddInt32(&job.waiting, 1)
 		<-job.waiter
@@ -95,7 +95,7 @@ func (job *Job) Wait() {
 	}
 }
 
-func (job *Job) Get() (interface{}, error) {
+func (job *GJob) Get() (interface{}, error) {
 	job.ExecInBackground()
 	job.Wait()
 
@@ -107,6 +107,6 @@ func (job *Job) Get() (interface{}, error) {
 	return value, err
 }
 
-func (job *Job) GetDeps() []*Job {
+func (job *GJob) GetDeps() []*GJob {
 	return job.deps
 }

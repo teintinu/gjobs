@@ -21,10 +21,18 @@ func TestJobs(t *testing.T) {
 		return "b", nil
 	})
 
-	children := jobs.ExecAndWait()
+	children := jobs.Run()
 
 	if len(children) != 2 {
 		t.Error("expect 2 children for ExecAndWait but was", len(children))
+	}
+	valfirst, _ := jobs.Get("a")
+	if valfirst.(string) != "a" {
+		t.Error("first children must be a but was ", valfirst)
+	}
+	valsecond, _ := jobs.Get("b")
+	if valsecond != "b" {
+		t.Error("second children must be b but as ", valsecond)
 	}
 	res := strings.Join(run, ",")
 	if res != "b,a" {
@@ -64,7 +72,7 @@ func TestJobsABCDE(t *testing.T) {
 		return "e", nil
 	})
 
-	jobs.ExecAndWait()
+	jobs.Run()
 
 	res := strings.Join(run, ",")
 	if res != "e,d,c,b,a" {
@@ -109,7 +117,7 @@ func TestGrouping(t *testing.T) {
 
 	mainJobs.AddGroup("sub", subJobs)
 
-	mainJobs.ExecAndWait()
+	mainJobs.Run()
 
 	if len(run) != 4 {
 		t.Error(strings.Join(run, ","), " not executed well")

@@ -1,40 +1,41 @@
 package gjobs
 
 import (
+	"errors"
 	"sync"
 )
 
-type Jobs struct {
+type GJobs struct {
 	mutex    *sync.Mutex
-	pending  map[string](func() *Job)
-	children map[string]*Job
+	pending  map[string](func() *GJob)
+	children map[string]*GJob
 }
 
-func NewJobs() *Jobs {
-	return &Jobs{
+func NewJobs() *GJobs {
+	return &GJobs{
 		mutex:    &sync.Mutex{},
-		pending:  map[string](func() *Job){},
-		children: map[string]*Job{},
+		pending:  map[string](func() *GJob){},
+		children: map[string]*GJob{},
 	}
 }
 
-func (jobs *Jobs) NewJob(name string, deps []string, fn func() (interface{}, error)) {
+func (jobs *GJobs) NewJob(name string, deps []string, fn func() (interface{}, error)) {
 	jobs.mutex.Lock()
 	if _, exists := jobs.pending[name]; exists {
 		jobs.mutex.Unlock()
-		panic("duplicate job name:" + name)
+		panic("duplicated job name:" + name)
 	}
 	if _, exists := jobs.children[name]; exists {
 		jobs.mutex.Unlock()
-		panic("duplicate job name:" + name)
+		panic("duplicated job name:" + name)
 	}
-	jobs.pending[name] = func() *Job {
+	jobs.pending[name] = func() *GJob {
 		jobs.mutex.Lock()
 		if _, wasResolved := jobs.children[name]; wasResolved {
 			jobs.mutex.Unlock()
 			return nil
 		}
-		jdeps := []*Job{}
+		jdeps := []*GJob{}
 		for _, depname := range deps {
 			if jdep, exists := jobs.children[depname]; exists {
 				jdeps = append(jdeps, jdep)
@@ -57,9 +58,9 @@ func (jobs *Jobs) NewJob(name string, deps []string, fn func() (interface{}, err
 	jobs.mutex.Unlock()
 }
 
-func (jobs *Jobs) ExecInBackground() {
-	factories := [](func() *Job){}
-	newJobs := []*Job{}
+func (jobs *GJobs) ExecInBackground() {
+	factories := [](func() *GJob){}
+	newJobs := []*GJob{}
 	jobs.mutex.Lock()
 	for _, jobfactory := range jobs.pending {
 		factories = append(factories, jobfactory)
@@ -76,10 +77,10 @@ func (jobs *Jobs) ExecInBackground() {
 	}
 }
 
-func (jobs *Jobs) ExecAndWait() []*Job {
+func (jobs *GJobs) Run() []*GJob {
 	jobs.ExecInBackground()
 	jobs.mutex.Lock()
-	children := []*Job{}
+	children := []*GJob{}
 	for _, job := range jobs.children {
 		children = append(children, job)
 	}
@@ -90,9 +91,9 @@ func (jobs *Jobs) ExecAndWait() []*Job {
 	return children
 }
 
-func (jobs *Jobs) AddGroup(name string, depJobs *Jobs) {
+func (jobs *GJobs) AddGroup(name string, depJobs *GJobs) {
 	jobs.NewJob(name, []string{}, func() (interface{}, error) {
-		depResults := depJobs.ExecAndWait()
+		depResults := depJobs.Run()
 		for _, depResult := range depResults {
 			err := depResult.result.err
 			if err != nil {
@@ -101,4 +102,13 @@ func (jobs *Jobs) AddGroup(name string, depJobs *Jobs) {
 		}
 		return depResults, nil
 	})
+}
+
+func (jobs *GJobs) Get(name string) (interface{}, error) {
+	jobs.Run()
+	if res, exists := jobs.children[name]; exists {
+		return res.result.value, res.result.err
+	} else {
+		return nil, errors.New("there is no job " + name + " job")
+	}
 }
