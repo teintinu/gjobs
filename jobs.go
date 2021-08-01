@@ -19,7 +19,6 @@ func NewJobs() *Jobs {
 }
 
 func (jobs *Jobs) NewJob(name string, deps []string, fn func() (interface{}, error)) {
-	println("NewJob-begin ", name)
 	jobs.mutex.Lock()
 	if _, exists := jobs.pending[name]; exists {
 		jobs.mutex.Unlock()
@@ -30,9 +29,7 @@ func (jobs *Jobs) NewJob(name string, deps []string, fn func() (interface{}, err
 		panic("duplicate job name:" + name)
 	}
 	jobs.pending[name] = func() *Job {
-		println("NewJob-resolving ", name)
 		jobs.mutex.Lock()
-		println("NewJob-resolving-locked ", name)
 		if _, wasResolved := jobs.children[name]; wasResolved {
 			jobs.mutex.Unlock()
 			return nil
@@ -48,7 +45,6 @@ func (jobs *Jobs) NewJob(name string, deps []string, fn func() (interface{}, err
 				jdeps = append(jdeps, jdep)
 			} else {
 				jobs.mutex.Unlock()
-				println("NewJob-panbcresolved: ", depname, " on ", name)
 				panic("can't resolve job name: " + depname + " on " + name)
 			}
 		}
@@ -56,11 +52,9 @@ func (jobs *Jobs) NewJob(name string, deps []string, fn func() (interface{}, err
 		jobs.children[name] = j
 		delete(jobs.pending, name)
 		jobs.mutex.Unlock()
-		println("NewJob-resolved: ", name)
 		return j
 	}
 	jobs.mutex.Unlock()
-	println("NewJob-end: ", name)
 }
 
 func (jobs *Jobs) ExecInBackground() {
@@ -98,9 +92,7 @@ func (jobs *Jobs) ExecAndWait() []*Job {
 
 func (jobs *Jobs) AddGroup(name string, depJobs *Jobs) {
 	jobs.NewJob(name, []string{}, func() (interface{}, error) {
-		println("subexec")
 		depResults := depJobs.ExecAndWait()
-		println("subexec-after")
 		for _, depResult := range depResults {
 			err := depResult.result.err
 			if err != nil {

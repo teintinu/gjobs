@@ -49,9 +49,7 @@ func (job *Job) ExecInBackground() {
 
 		go func() {
 			defer func() {
-				println(job, "panic1")
 				if err := recover(); err != nil {
-					println(job, "panic2")
 					job.mutex.Lock()
 					job.result = &JobResult{
 						value: nil,
@@ -59,10 +57,8 @@ func (job *Job) ExecInBackground() {
 					}
 					atomic.CompareAndSwapInt32(&job.state, JobStateRunning, JobStateFinishedButWaiting)
 					job.mutex.Unlock()
-					println(job, "panic3")
 					for atomic.LoadInt32(&job.waiting) > 0 {
 						job.waiter <- *job.result
-						println(job, "enviado panic")
 					}
 				}
 			}()
@@ -82,7 +78,6 @@ func (job *Job) ExecInBackground() {
 			atomic.CompareAndSwapInt32(&job.state, JobStateRunning, JobStateFinishedButWaiting)
 			for atomic.LoadInt32(&job.waiting) > 0 {
 				job.waiter <- result
-				println(job, "enviado")
 			}
 		}()
 
@@ -91,7 +86,6 @@ func (job *Job) ExecInBackground() {
 
 func (job *Job) Wait() {
 	if atomic.LoadInt32(&job.state) < JobStateFinished {
-		println(job, "waiting", atomic.AddInt32(&job.waiting, 1))
 		atomic.AddInt32(&job.waiting, 1)
 		<-job.waiter
 		atomic.AddInt32(&job.waiting, -1)
@@ -106,7 +100,6 @@ func (job *Job) Get() (interface{}, error) {
 	job.Wait()
 
 	job.mutex.Lock()
-	println(job, "Getting")
 	var value = job.result.value
 	var err = job.result.err
 	job.mutex.Unlock()

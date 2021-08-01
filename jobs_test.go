@@ -77,7 +77,6 @@ func TestGrouping(t *testing.T) {
 	run := []string{}
 	var mainJobs = NewJobs()
 	mainJobs.NewJob("a1", []string{"b1"}, func() (interface{}, error) {
-		println("run a1")
 		mx.Lock()
 		run = append(run, "a1")
 		mx.Unlock()
@@ -85,7 +84,6 @@ func TestGrouping(t *testing.T) {
 	})
 
 	mainJobs.NewJob("b1", []string{}, func() (interface{}, error) {
-		println("run b1")
 		time.Sleep(time.Millisecond * 50)
 		mx.Lock()
 		run = append(run, "b1")
@@ -95,7 +93,6 @@ func TestGrouping(t *testing.T) {
 
 	var subJobs = NewJobs()
 	subJobs.NewJob("a2", []string{"b2"}, func() (interface{}, error) {
-		println("run a2")
 		mx.Lock()
 		run = append(run, "a2")
 		mx.Unlock()
@@ -103,7 +100,6 @@ func TestGrouping(t *testing.T) {
 	})
 
 	subJobs.NewJob("b2", []string{}, func() (interface{}, error) {
-		println("run b2")
 		time.Sleep(time.Millisecond * 50)
 		mx.Lock()
 		run = append(run, "b2")
