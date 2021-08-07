@@ -50,6 +50,9 @@ func (jobs *GJobs) NewJob(name string, deps []string, fn func() (interface{}, er
 			}
 		}
 		j := NewJob(jdeps, fn)
+		if verbose != nil {
+			verbose("GJobs.NewJob", j, name)
+		}
 		jobs.children[name] = j
 		delete(jobs.pending, name)
 		jobs.mutex.Unlock()

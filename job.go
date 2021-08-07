@@ -7,6 +7,8 @@ import (
 	"sync/atomic"
 )
 
+var verbose func(args ...interface{}) (n int, err error) // = fmt.Println
+
 type GJob struct {
 	deps    []*GJob
 	result  *GJobResult
@@ -46,10 +48,18 @@ func NewJob(deps []*GJob, fn func() (interface{}, error)) *GJob {
 func (job *GJob) ExecInBackground() {
 
 	if atomic.CompareAndSwapInt32(&job.state, JobStateNotStarted, JobStateRunning) {
-
+		if verbose != nil {
+			verbose("GJob.ExecInBackground", job)
+		}
 		go func() {
 			defer func() {
+				if verbose != nil {
+					verbose("GJob.ExecInBackground.finally", job)
+				}
 				if err := recover(); err != nil {
+					if verbose != nil {
+						verbose("GJob.ExecInBackground.recover()", job)
+					}
 					job.mutex.Lock()
 					job.result = &GJobResult{
 						value: nil,
@@ -62,9 +72,15 @@ func (job *GJob) ExecInBackground() {
 					}
 				}
 			}()
+			if verbose != nil {
+				verbose("GJob.ExecInBackground.deps", job)
+			}
 			for _, dep := range job.deps {
 				dep.ExecInBackground()
 				dep.Wait()
+			}
+			if verbose != nil {
+				verbose("GJob.ExecInBackground.fn", job)
 			}
 			value, err := job.fn()
 			result := GJobResult{
@@ -80,17 +96,22 @@ func (job *GJob) ExecInBackground() {
 				job.waiter <- result
 			}
 		}()
-
 	}
 }
 
 func (job *GJob) Wait() {
 	if atomic.LoadInt32(&job.state) < JobStateFinished {
+		if verbose != nil {
+			verbose("GJob.Wait.start", job)
+		}
 		atomic.AddInt32(&job.waiting, 1)
 		<-job.waiter
 		atomic.AddInt32(&job.waiting, -1)
 		if atomic.CompareAndSwapInt32(&job.state, JobStateFinishedButWaiting, JobStateFinished) {
 			atomic.AddInt32(&job.waiting, -1)
+		}
+		if verbose != nil {
+			verbose("GJob.ExecInBackground.finish", job)
 		}
 	}
 }
