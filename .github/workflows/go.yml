@@ -23,4 +23,6 @@ jobs:
 
     - name: Test
       run: go test -v ./...
-go list -m github.com/teintinu/gjobs@v1.0.1
+
+    - name: List
+      run: go list -m github.com/teintinu/gjobs@${GITHUB_REF##*/}
